@@ -1,6 +1,7 @@
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
+const path = require("path");
 const { Server } = require("socket.io");
 
 const app = express();
@@ -11,10 +12,13 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "*",
     methods: ["GET", "POST"],
   },
 });
+
+// React / Client static files serve பண்ண
+app.use(express.static(path.join(__dirname, "../client/dist")));
 
 let board = Array(9).fill("");
 let currentPlayer = "X";
@@ -63,34 +67,20 @@ const sendGameState = () => {
 io.on("connection", (socket) => {
   console.log("🟢 Player connected:", socket.id);
 
-  // Assign X
   if (!players.X) {
     players.X = socket.id;
-
     socket.emit("playerAssigned", "X");
-
     console.log("❌ Player X joined");
-  }
-
-  // Assign O
-  else if (!players.O) {
+  } else if (!players.O) {
     players.O = socket.id;
-
     socket.emit("playerAssigned", "O");
-
     console.log("⭕ Player O joined");
-  }
-
-  // Game full
-  else {
+  } else {
     socket.emit("gameFull");
-
     console.log("⚠️ Game full");
-
     return;
   }
 
-  // Send current state
   socket.emit("gameState", {
     board,
     currentPlayer,
@@ -98,7 +88,6 @@ io.on("connection", (socket) => {
     gameOver,
   });
 
-  // Make move
   socket.on("makeMove", (index) => {
     const player =
       players.X === socket.id
@@ -108,56 +97,36 @@ io.on("connection", (socket) => {
         : null;
 
     if (!player) return;
-
-    // Game already finished
     if (gameOver) return;
-
-    // Wrong player's turn
     if (player !== currentPlayer) return;
-
-    // Invalid cell
     if (board[index] !== "") return;
 
-    // Make move
     board[index] = player;
-
-    // Check winner
     winner = checkWinner();
 
     if (winner) {
       gameOver = true;
       console.log(`🏆 Player ${winner} wins!`);
-    }
-
-    // Check draw
-    else if (board.every((cell) => cell !== "")) {
+    } else if (board.every((cell) => cell !== "")) {
       gameOver = true;
       winner = "DRAW";
-
       console.log("🤝 Game draw!");
-    }
-
-    // Change turn
-    else {
+    } else {
       currentPlayer = player === "X" ? "O" : "X";
     }
 
     sendGameState();
   });
 
-  // Restart
   socket.on("restartGame", () => {
     board = Array(9).fill("");
     currentPlayer = "X";
     winner = null;
     gameOver = false;
-
     console.log("🔄 Game restarted");
-
     sendGameState();
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
     console.log("🔴 Player disconnected:", socket.id);
 
@@ -178,10 +147,13 @@ io.on("connection", (socket) => {
   });
 });
 
-app.get("/", (req, res) => {
-  res.send("XO WebSocket Server Running 🚀");
+// Any route -> Frontend index.html-க்கு redirect பண்ணும்
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
-server.listen(5000, () => {
-  console.log("🚀 Server running on http://localhost:5000");
+const PORT = process.env.PORT || 5000;
+
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
