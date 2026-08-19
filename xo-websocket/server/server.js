@@ -148,7 +148,7 @@ io.on("connection", (socket) => {
 });
 
 // Any route -> Frontend index.html-க்கு redirect பண்ணும்
-app.get("*", (req, res) => {
+app.get(/(.*)/, (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
