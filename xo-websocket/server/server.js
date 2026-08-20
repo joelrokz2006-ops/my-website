@@ -1,24 +1,22 @@
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
-const path = require("path");
 const { Server } = require("socket.io");
 
 const app = express();
 
+// Enable CORS for basic Express routes
 app.use(cors());
 
 const server = http.createServer(app);
 
+// Setup Socket.io with correct CORS for Vercel
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "https://my-website-mu-henna-45.vercel.app", // Unga Vercel URL
     methods: ["GET", "POST"],
   },
 });
-
-// React / Client static files serve பண்ண
-app.use(express.static(path.join(__dirname, "../client/dist")));
 
 let board = Array(9).fill("");
 let currentPlayer = "X";
@@ -32,26 +30,16 @@ let players = {
 
 const checkWinner = () => {
   const combinations = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+    [0, 4, 8], [2, 4, 6],            // Diagonals
   ];
 
   for (const [a, b, c] of combinations) {
-    if (
-      board[a] &&
-      board[a] === board[b] &&
-      board[a] === board[c]
-    ) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
       return board[a];
     }
   }
-
   return null;
 };
 
@@ -89,17 +77,9 @@ io.on("connection", (socket) => {
   });
 
   socket.on("makeMove", (index) => {
-    const player =
-      players.X === socket.id
-        ? "X"
-        : players.O === socket.id
-        ? "O"
-        : null;
+    const player = players.X === socket.id ? "X" : players.O === socket.id ? "O" : null;
 
-    if (!player) return;
-    if (gameOver) return;
-    if (player !== currentPlayer) return;
-    if (board[index] !== "") return;
+    if (!player || gameOver || player !== currentPlayer || board[index] !== "") return;
 
     board[index] = player;
     winner = checkWinner();
@@ -130,13 +110,8 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("🔴 Player disconnected:", socket.id);
 
-    if (players.X === socket.id) {
-      players.X = null;
-    }
-
-    if (players.O === socket.id) {
-      players.O = null;
-    }
+    if (players.X === socket.id) players.X = null;
+    if (players.O === socket.id) players.O = null;
 
     board = Array(9).fill("");
     currentPlayer = "X";
@@ -147,9 +122,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// Any route -> Frontend index.html-க்கு redirect பண்ணும்
-app.get(/(.*)/, (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+// Simple API route to check if backend is running on Render
+app.get("/", (req, res) => {
+  res.send("XO Game Backend is running perfectly!");
 });
 
 const PORT = process.env.PORT || 5000;
