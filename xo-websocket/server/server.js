@@ -10,10 +10,15 @@ app.use(cors());
 
 const server = http.createServer(app);
 
-// Setup Socket.io with correct CORS for Vercel
+// Setup Socket.io — allow local dev from Game Hub and XO client
 const io = new Server(server, {
   cors: {
-    origin: "https://my-website-mu-henna-45.vercel.app", // Unga Vercel URL
+    origin: [
+      "http://localhost:5174",  // Game Hub
+      "http://localhost:5177",  // XO client dev port
+      "http://localhost:5173",
+      "https://my-website-mu-henna-45.vercel.app",
+    ],
     methods: ["GET", "POST"],
   },
 });
@@ -122,13 +127,13 @@ io.on("connection", (socket) => {
   });
 });
 
-// Simple API route to check if backend is running on Render
+// Simple API route to check if backend is running
 app.get("/", (req, res) => {
   res.send("XO Game Backend is running perfectly!");
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5002;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 XO Server running on port ${PORT}`);
 });
